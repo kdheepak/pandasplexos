@@ -13,7 +13,7 @@ requirements = [
     'Click>=6.0',
     'pandas>=0.18.1',
     'lxml>=3.6.4',
-    'future>0.15.2'
+    'future>=0.15.2'
 ]
 
 test_requirements = [
