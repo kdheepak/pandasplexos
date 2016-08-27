@@ -4,8 +4,13 @@ from builtins import (bytes, str, open, super, range,
                       zip, round, input, int, pow)
 
 import logging
+import os
 
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    from xml import etree
+
 import pandas as pd
 
 from .helper import elem2dict
@@ -15,23 +20,30 @@ NAMESPACES = {'n': 'http://tempuri.org/SolutionDataset.xsd'}
 
 
 class PandasPlexosSolution(object):
-    def __init__(self, input_file):
-        with open(input_file) as f:
-            data = f.read()
+    def __init__(self, file):
 
-        self._root = etree.fromstring(data)
+        try:
+            self._root = etree.fromstring(file)
+        except IOError:
+            with open(os.path.abspath(file)) as f:
+                data = f.read()
+            self._root = etree.fromstring(data)
+
         self._tables = tuple({element.tag.replace('{{{}}}'.format(NAMESPACES['n']), '') for element in self._root.getchildren()})
         for tbl in self._tables:
             self._create_property(tbl)
 
     def _create_property(self, prop):
-        is_index_set = False
         lst = []
         for element in self._root.xpath('n:{}'.format(prop), namespaces=NAMESPACES):
             dct = elem2dict(element)
             lst.append(dct)
         df = pd.DataFrame(lst)
+        df = self._try_set_index(df, prop)
+        setattr(self, prop, df)
 
+    def _try_set_index(self, df, prop):
+        is_index_set = False
         if not is_index_set:
             try:
                 df = df.set_index('{}_id'.format(prop.replace('t_', '')))
@@ -65,4 +77,4 @@ class PandasPlexosSolution(object):
         if not is_index_set:
             logger.debug("Unable to set index for {}".format(prop))
 
-        setattr(self, prop, df)
+        return df
